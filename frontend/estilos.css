@@ -1,0 +1,312 @@
+/* Estilos generales del cuerpo */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #2c3e50; /* Azul marino oscuro */
+    color: #ecf0f1; /* Texto claro */
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden; /* Evita el scroll global */
+}
+
+/* Contenedor principal de la aplicación de chat */
+#app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* Barra lateral izquierda para usuarios y salas */
+#sidebar {
+    width: 250px;
+    background-color: #34495e; /* Un tono más claro que el fondo principal */
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2); /* Sombra para dar profundidad */
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* Permite scroll si hay muchas salas/usuarios */
+}
+
+#sidebar h2 {
+    color: #ecf0f1;
+    border-bottom: 1px solid #7f8c8d; /* Línea separadora */
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+/* Estilos para la sección de usuario logueado */
+#logged-in-user {
+    margin-bottom: 20px;
+    text-align: center;
+}
+#logged-in-user p {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Listas de salas y usuarios */
+#room-list ul, #user-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#room-list li, #user-list li {
+    padding: 8px 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#room-list li:hover, #user-list li:hover {
+    background-color: #4a6572; /* Efecto hover */
+}
+
+#room-list li.active-room {
+    background-color: #3498db; /* Sala activa */
+    font-weight: bold;
+}
+
+#room-list li span {
+    flex-grow: 1; /* Permite que el nombre de la sala ocupe espacio */
+}
+
+/* Botón de eliminar sala */
+.delete-room-btn {
+    background: none;
+    border: none;
+    color: #e74c3c; /* Rojo para el botón de eliminar */
+    cursor: pointer;
+    font-size: 0.9em;
+    margin-left: 10px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    display: none; /* Oculto por defecto */
+}
+#room-list li:hover .delete-room-btn {
+    display: inline-block; /* Muestra el botón al pasar el mouse */
+}
+.delete-room-btn:hover {
+    background-color: #c0392b;
+    color: white;
+}
+
+/* Contenedor principal del chat */
+#chat-container {
+    flex-grow: 1; /* Ocupa el espacio restante */
+    display: flex;
+    flex-direction: column;
+    background-color: #2c3e50; /* Fondo principal del cuerpo */
+    position: relative; /* Para el botón de logout flotante */
+}
+
+/* Encabezado del chat (muestra la sala actual) */
+#chat-header {
+    background-color: #34495e;
+    padding: 15px 20px;
+    font-size: 1.2em;
+    color: #ecf0f1;
+    border-bottom: 1px solid #7f8c8d;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Área de mensajes del chat */
+#chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto; /* Permite scroll si hay muchos mensajes */
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Espacio entre burbujas de mensaje */
+}
+
+/* Estilo de burbujas de mensaje */
+.message-bubble {
+    max-width: 70%; /* Ancho máximo de la burbuja */
+    padding: 10px 15px;
+    border-radius: 18px; /* Bordes redondeados */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    /* align-items se define en las clases específicas (my-message, other-message) */
+}
+
+/* Estilo para TUS mensajes (alineados a la izquierda) */
+.message-bubble.my-message {
+    background-color: #3498db; /* Azul para mis mensajes */
+    color: white;
+    align-self: flex-start; /* Alineado a la izquierda */
+    text-align: left; /* Alineación del texto dentro de la burbuja */
+}
+
+/* Estilo para mensajes de OTROS (alineados a la derecha) */
+.message-bubble.other-message {
+    background-color: #2ecc71; /* ¡VERDE para mensajes de otros! */
+    color: white; /* Letras en blanco */
+    align-self: flex-end; /* Alineado a la derecha */
+    text-align: right; /* Alineación del texto dentro de la burbuja */
+}
+
+/* Nombre de usuario dentro de la burbuja */
+.message-bubble .username {
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-bottom: 3px;
+}
+.message-bubble.my-message .username {
+    color: #ecf0f1; /* Color de usuario para mis mensajes */
+}
+.message-bubble.other-message .username {
+    color: #f1c40f; /* Color de usuario para mensajes de otros (amarillo) */
+}
+
+/* Marca de tiempo dentro de la burbuja */
+.message-bubble .timestamp {
+    font-size: 0.7em;
+    color: rgba(255, 255, 255, 0.7); /* Transparencia para el timestamp */
+    margin-top: 5px;
+    /* Alineación específica para el timestamp dentro de cada tipo de burbuja */
+}
+.message-bubble.my-message .timestamp {
+    align-self: flex-end; /* Alinea el timestamp a la derecha en mis mensajes */
+}
+.message-bubble.other-message .timestamp {
+    align-self: flex-start; /* Alinea el timestamp a la izquierda en mensajes de otros */
+}
+
+
+/* Estilo para enlaces dentro de las burbujas */
+.message-bubble a {
+    color: #1abc9c; /* Verde turquesa para enlaces en burbujas */
+    text-decoration: none;
+}
+.message-bubble a:hover {
+    text-decoration: underline;
+}
+
+/* Área de entrada de mensaje y botones */
+#message-input-area {
+    display: flex;
+    padding: 15px;
+    background-color: #34495e; /* Fondo para el área de input */
+    border-top: 1px solid #7f8c8d;
+}
+
+#message-input {
+    flex-grow: 1; /* Ocupa el espacio disponible */
+    padding: 10px 15px;
+    border: 1px solid #7f8c8d;
+    border-radius: 20px;
+    margin-right: 10px;
+    background-color: #4a6572;
+    color: #ecf0f1;
+    font-size: 1em;
+    outline: none; /* Elimina el borde de enfoque */
+}
+
+/* Estilos para los botones de enviar y adjuntar */
+#send-button, #file-upload-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 20px;
+    background-color: #2ecc71; /* Verde para el botón de enviar */
+    color: white;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-left: 5px;
+}
+#send-button:hover, #file-upload-btn:hover {
+    background-color: #27ae60;
+}
+#file-upload-btn {
+    background-color: #f1c40f; /* Amarillo para el botón de subir archivo */
+    margin-right: 10px;
+}
+#file-upload-btn:hover {
+    background-color: #e6b100;
+}
+
+/* Formulario y botón de creación de sala */
+#create-room-form {
+    display: flex;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #7f8c8d;
+}
+#new-room-name {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #7f8c8d;
+    border-radius: 4px;
+    background-color: #4a6572;
+    color: #ecf0f1;
+    margin-right: 10px;
+}
+#create-room-btn {
+    padding: 8px 15px;
+    background-color: #1abc9c; /* Verde turquesa para crear sala */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+#create-room-btn:hover {
+    background-color: #16a085;
+}
+
+/* Mensajes flash de Flask (errores, éxito, info) */
+.messages {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: absolute; /* Posiciona los mensajes sobre el contenido */
+    top: 10px;
+    width: 100%;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1000; /* Asegura que estén por encima de otros elementos */
+}
+.messages li {
+    background-color: #2980b9; /* Azul para mensajes info */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    opacity: 0.95;
+    transition: opacity 0.5s ease-in-out; /* Transición suave para desaparecer */
+    max-width: 80%;
+    text-align: center;
+}
+.messages .error {
+    background-color: #e74c3c; /* Rojo para errores */
+}
+.messages .success {
+    background-color: #27ae60; /* Verde para éxito */
+}
+
+/* Botón de Logout */
+#logout-btn {
+    background-color: #e74c3c; /* Rojo para logout */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-top: 15px; /* Espacio debajo del nombre de usuario */
+    width: 100%; /* Ocupa todo el ancho disponible */
+}
+#logout-btn:hover {
+    background-color: #c0392b;
+}

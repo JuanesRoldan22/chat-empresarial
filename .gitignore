@@ -1,0 +1,15 @@
+# Ignorar entorno virtual
+venv/
+*.pyc
+__pycache__/
+
+# Ignorar archivos subidos
+uploads/
+
+# Ignorar archivos de base de datos local (si usas SQLite)
+*.db
+*.sqlite3
+
+# Archivos de configuración específicos del IDE (PyCharm, VS Code)
+.idea/
+.vscode/

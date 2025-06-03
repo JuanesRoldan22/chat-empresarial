@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Empresarial</title>
+    <!-- Incluir la librería de Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        /* Estilos generales del cuerpo */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50; /* Azul marino oscuro */
+            color: #ecf0f1; /* Texto claro */
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden; /* Evita el scroll global */
+        }
+
+        /* Contenedor principal de la aplicación de chat */
+        #app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Barra lateral izquierda para usuarios y salas */
+        #sidebar {
+            width: 250px;
+            background-color: #34495e; /* Un tono más claro que el fondo principal */
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2); /* Sombra para dar profundidad */
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; /* Permite scroll si hay muchas salas/usuarios */
+        }
+
+        #sidebar h2 {
+            color: #ecf0f1;
+            border-bottom: 1px solid #7f8c8d; /* Línea separadora */
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        /* Estilos para la sección de usuario logueado */
+        #logged-in-user {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #logged-in-user p {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        /* Listas de salas y usuarios */
+        #room-list ul, #user-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #room-list li, #user-list li {
+            padding: 8px 0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #room-list li:hover, #user-list li:hover {
+            background-color: #4a6572; /* Efecto hover */
+        }
+
+        #room-list li.active-room {
+            background-color: #3498db; /* Sala activa */
+            font-weight: bold;
+        }
+
+        #room-list li span {
+            flex-grow: 1; /* Permite que el nombre de la sala ocupe espacio */
+        }
+
+        /* Botón de eliminar sala */
+        .delete-room-btn {
+            background: none;
+            border: none;
+            color: #e74c3c; /* Rojo para el botón de eliminar */
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            display: none; /* Oculto por defecto */
+        }
+        #room-list li:hover .delete-room-btn {
+            display: inline-block; /* Muestra el botón al pasar el mouse */
+        }
+        .delete-room-btn:hover {
+            background-color: #c0392b;
+            color: white;
+        }
+
+        /* Contenedor principal del chat */
+        #chat-container {
+            flex-grow: 1; /* Ocupa el espacio restante */
+            display: flex;
+            flex-direction: column;
+            background-color: #2c3e50; /* Fondo principal del cuerpo */
+            position: relative; /* Para el botón de logout flotante */
+        }
+
+        /* Encabezado del chat (muestra la sala actual) */
+        #chat-header {
+            background-color: #34495e;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            color: #ecf0f1;
+            border-bottom: 1px solid #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Área de mensajes del chat */
+        #chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto; /* Permite scroll si hay muchos mensajes */
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* Espacio entre burbujas de mensaje */
+        }
+
+        /* Estilo de burbujas de mensaje */
+        .message-bubble {
+            max-width: 70%; /* Ancho máximo de la burbuja */
+            padding: 10px 15px;
+            border-radius: 18px; /* Bordes redondeados */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            /* align-items se define en las clases específicas (my-message, other-message) */
+        }
+
+        /* Estilo para TUS mensajes (alineados a la izquierda) */
+        .message-bubble.my-message {
+            background-color: #3498db; /* Azul para mis mensajes */
+            color: white;
+            align-self: flex-start; /* Alineado a la izquierda */
+            text-align: left; /* Alineación del texto dentro de la burbuja */
+        }
+
+        /* Estilo para mensajes de OTROS (alineados a la derecha) */
+        .message-bubble.other-message {
+            background-color: #7f8c8d; /* Gris para mensajes de otros */
+            color: white;
+            align-self: flex-end; /* Alineado a la derecha */
+            text-align: right; /* Alineación del texto dentro de la burbuja */
+        }
+
+        /* Nombre de usuario dentro de la burbuja */
+        .message-bubble .username {
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-bottom: 3px;
+        }
+        .message-bubble.my-message .username {
+            color: #ecf0f1; /* Color de usuario para mis mensajes */
+        }
+        .message-bubble.other-message .username {
+            color: #f1c40f; /* Color de usuario para mensajes de otros (amarillo) */
+        }
+
+        /* Marca de tiempo dentro de la burbuja */
+        .message-bubble .timestamp {
+            font-size: 0.7em;
+            color: rgba(255, 255, 255, 0.7); /* Transparencia para el timestamp */
+            margin-top: 5px;
+            /* Alineación específica para el timestamp dentro de cada tipo de burbuja */
+        }
+        .message-bubble.my-message .timestamp {
+            align-self: flex-end; /* Alinea el timestamp a la derecha en mis mensajes */
+        }
+        .message-bubble.other-message .timestamp {
+            align-self: flex-start; /* Alinea el timestamp a la izquierda en mensajes de otros */
+        }
+
+
+        /* Estilo para enlaces dentro de las burbujas */
+        .message-bubble a {
+            color: #1abc9c; /* Verde turquesa para enlaces en burbujas */
+            text-decoration: none;
+        }
+        .message-bubble a:hover {
+            text-decoration: underline;
+        }
+
+        /* Área de entrada de mensaje y botones */
+        #message-input-area {
+            display: flex;
+            padding: 15px;
+            background-color: #34495e; /* Fondo para el área de input */
+            border-top: 1px solid #7f8c8d;
+        }
+
+        #message-input {
+            flex-grow: 1; /* Ocupa el espacio disponible */
+            padding: 10px 15px;
+            border: 1px solid #7f8c8d;
+            border-radius: 20px;
+            margin-right: 10px;
+            background-color: #4a6572;
+            color: #ecf0f1;
+            font-size: 1em;
+            outline: none; /* Elimina el borde de enfoque */
+        }
+
+        /* Estilos para los botones de enviar y adjuntar */
+        #send-button, #file-upload-btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 20px;
+            background-color: #2ecc71; /* Verde para el botón de enviar */
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-left: 5px;
+        }
+        #send-button:hover, #file-upload-btn:hover {
+            background-color: #27ae60;
+        }
+        #file-upload-btn {
+            background-color: #f1c40f; /* Amarillo para el botón de subir archivo */
+            margin-right: 10px;
+        }
+        #file-upload-btn:hover {
+            background-color: #e6b100;
+        }
+
+        /* Formulario y botón de creación de sala */
+        #create-room-form {
+            display: flex;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #7f8c8d;
+        }
+        #new-room-name {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #7f8c8d;
+            border-radius: 4px;
+            background-color: #4a6572;
+            color: #ecf0f1;
+            margin-right: 10px;
+        }
+        #create-room-btn {
+            padding: 8px 15px;
+            background-color: #1abc9c; /* Verde turquesa para crear sala */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #create-room-btn:hover {
+            background-color: #16a085;
+        }
+
+        /* Mensajes flash de Flask (errores, éxito, info) */
+        .messages {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            position: absolute; /* Posiciona los mensajes sobre el contenido */
+            top: 10px;
+            width: 100%;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1000; /* Asegura que estén por encima de otros elementos */
+        }
+        .messages li {
+            background-color: #2980b9; /* Azul para mensajes info */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            opacity: 0.95;
+            transition: opacity 0.5s ease-in-out; /* Transición para desaparecer */
+            max-width: 80%;
+            text-align: center;
+        }
+        .messages .error {
+            background-color: #e74c3c; /* Rojo para errores */
+        }
+        .messages .success {
+            background-color: #27ae60; /* Verde para éxito */
+        }
+
+        /* Botón de Logout */
+        #logout-btn {
+            background-color: #e74c3c; /* Rojo para logout */
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 15px; /* Espacio debajo del nombre de usuario */
+            width: 100%; /* Ocupa todo el ancho disponible */
+        }
+        #logout-btn:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Contenedor principal de la aplicación -->
+    <div id="app-container">
+        <!-- Barra lateral izquierda -->
+        <div id="sidebar">
+            <h2>Mi Chat</h2>
+            <div id="logged-in-user">
+                <!-- El nombre de usuario se insertará aquí con Jinja2 desde Flask -->
+                <p>Bienvenido, <strong>{{ username }}</strong></p>
+                <button id="logout-btn" onclick="logout()">Cerrar Sesión</button>
+            </div>
+
+            <h2>Salas</h2>
+            <div id="room-list">
+                <ul>
+                    <!-- Las salas se cargarán aquí dinámicamente por Socket.IO -->
+                </ul>
+            </div>
+
+            <!-- Formulario para crear nuevas salas -->
+            <div id="create-room-form">
+                <input type="text" id="new-room-name" placeholder="Nueva sala">
+                <button id="create-room-btn">Crear</button>
+            </div>
+
+            <h2>Usuarios en línea</h2>
+            <div id="user-list">
+                <ul>
+                    <!-- Los usuarios conectados se cargarán aquí dinámicamente por Socket.IO -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Contenedor principal del chat -->
+        <div id="chat-container">
+            <!-- Encabezado del chat con la sala actual -->
+            <div id="chat-header">
+                Sala Actual: <span id="current-room-display">general</span>
+            </div>
+            <!-- Área de mensajes del chat -->
+            <div id="chat-messages">
+                <!-- Los mensajes se mostrarán aquí dinámicamente -->
+            </div>
+            <!-- Área de entrada de mensaje y botones -->
+            <div id="message-input-area">
+                <!-- Input de archivo oculto que se activa con el botón -->
+                <input type="file" id="file-input" style="display: none;">
+                <button id="file-upload-btn" onclick="document.getElementById('file-input').click()">Adjuntar Archivo</button>
+                <input type="text" id="message-input" placeholder="Escribe un mensaje...">
+                <button id="send-button">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensajes flash desde Flask (errores, éxito, info) -->
+    <!-- Estos mensajes aparecen en la parte superior de la página y desaparecen automáticamente -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <script>
+        // Obtener el nombre de usuario del usuario autenticado desde Jinja2
+        const currentUsername = "{{ username }}";
+        let currentRoom = 'general'; // Sala inicial por defecto
+        const socket = io(); // Inicializar la conexión Socket.IO
+
+        // --- Funciones de Utilidad del Frontend ---
+
+        // Función para formatear las marcas de tiempo (ej. 14:35)
+        function formatTimestamp(ms) {
+            const date = new Date(ms);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        // Función para añadir un mensaje al área de chat
+        function addMessage(username, text, timestamp) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageBubble = document.createElement('div');
+            messageBubble.classList.add('message-bubble');
+
+            // Determinar si el mensaje es del usuario actual o de otro
+            const isMyMessage = username === currentUsername;
+            if (isMyMessage) {
+                messageBubble.classList.add('my-message'); // Aplica estilos para mis mensajes (izquierda)
+            } else {
+                messageBubble.classList.add('other-message'); // Aplica estilos para mensajes de otros (derecha)
+            }
+
+            const usernameSpan = document.createElement('span');
+            usernameSpan.classList.add('username');
+            usernameSpan.textContent = username;
+
+            const textSpan = document.createElement('span');
+            textSpan.classList.add('text');
+            textSpan.innerHTML = text; // Usar innerHTML para permitir enlaces en archivos
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('timestamp');
+            timestampSpan.textContent = formatTimestamp(timestamp);
+
+            messageBubble.appendChild(usernameSpan);
+            messageBubble.appendChild(textSpan);
+            messageBubble.appendChild(timestampSpan);
+
+            chatMessages.appendChild(messageBubble);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll automático al final
+        }
+
+        // Función para añadir mensajes del sistema (ej. "Usuario se ha unido")
+        function addSystemMessage(text, timestamp = Date.now()) {
+            const chatMessages = document.getElementById('chat-messages');
+            const systemMessage = document.createElement('div');
+            systemMessage.classList.add('message-bubble', 'system-message');
+            // Estilos directos para mensajes del sistema para sobrescribir o complementar
+            systemMessage.style.backgroundColor = '#2980b9'; /* Azul para mensajes del sistema */
+            systemMessage.style.color = 'white';
+            systemMessage.style.maxWidth = '100%';
+            systemMessage.style.textAlign = 'center';
+            systemMessage.style.alignSelf = 'center'; /* Centrar mensajes del sistema */
+
+            const textSpan = document.createElement('span');
+            textSpan.textContent = text;
+            textSpan.style.width = '100%';
+
+            const timestampSpan = document.createElement('span');
+            timestampSpan.classList.add('timestamp');
+            timestampSpan.textContent = formatTimestamp(timestamp);
+            timestampSpan.style.alignSelf = 'center'; /* Centrar timestamp en mensajes del sistema */
+
+
+            systemMessage.appendChild(textSpan);
+            systemMessage.appendChild(timestampSpan);
+            chatMessages.appendChild(systemMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Función para unirse a una sala
+        function joinRoom(roomName) {
+            currentRoom = roomName;
+            document.getElementById('current-room-display').textContent = roomName; // Actualiza el nombre de la sala en el encabezado
+            document.getElementById('chat-messages').innerHTML = ''; // Limpiar mensajes al cambiar de sala
+            socket.emit('unirse_sala', { sala: roomName }); // Emitir evento al servidor
+
+            // Actualizar la clase 'active-room' en la lista de salas para resaltar la sala actual
+            document.querySelectorAll('#room-list li').forEach(li => {
+                li.classList.remove('active-room');
+                if (li.dataset.roomName === roomName) {
+                    li.classList.add('active-room');
+                }
+            });
+        }
+
+        // Función para cerrar sesión (redirige al servidor Flask)
+        function logout() {
+            window.location.href = '/logout';
+        }
+
+        // --- Eventos de Socket.IO (Escuchas del cliente) ---
+
+        socket.on('connect', function() {
+            console.log('Conectado al servidor Socket.IO');
+            // Enviar el nombre de usuario al servidor para asociarlo con el SID
+            socket.emit('establecer_nombre_usuario', { usuario: currentUsername });
+            // Unirse a la sala general por defecto al conectar
+            joinRoom(currentRoom); // Llama a la función joinRoom para manejar la lógica de UI y emitir al servidor
+        });
+
+        socket.on('disconnect', function() {
+            console.log('Desconectado del servidor Socket.IO');
+            addSystemMessage('Has sido desconectado del chat.');
+        });
+
+        // Evento para nuevos mensajes públicos
+        socket.on('nuevo_mensaje', function(data) {
+            addMessage(data.usuario, data.texto, data.timestamp);
+        });
+
+        // Evento para mensajes privados
+        socket.on('mensaje_privado', function(data) {
+            // Puedes diferenciar los mensajes privados visualmente si quieres
+            // Aquí se usa un mensaje del sistema para indicar que es privado
+            addSystemMessage(`Mensaje privado de ${data.remitente}: ${data.texto}`, data.timestamp);
+        });
+
+        // Evento para mensajes del sistema
+        socket.on('mensaje_sistema', function(data) {
+            addSystemMessage(data.texto);
+        });
+
+        // Evento para actualizar la lista de usuarios en la sala actual
+        socket.on('actualizar_usuarios', function(data) {
+            if (data.sala === currentRoom) {
+                const userListUl = document.getElementById('user-list').querySelector('ul');
+                userListUl.innerHTML = ''; // Limpiar lista existente
+                data.usuarios.forEach(user => {
+                    const li = document.createElement('li');
+                    li.textContent = user;
+                    userListUl.appendChild(li);
+                });
+            }
+        });
+
+        // Evento para actualizar la lista de usuarios conectados globalmente
+        socket.on('usuarios_conectados', function(usuariosConectados) {
+            const userListUl = document.getElementById('user-list').querySelector('ul');
+            userListUl.innerHTML = ''; // Limpiar lista existente
+            usuariosConectados.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = user.nombre;
+                // Opcional: añadir un indicador de estado en línea
+                const onlineIndicator = document.createElement('span');
+                onlineIndicator.style.width = '8px';
+                onlineIndicator.style.height = '8px';
+                onlineIndicator.style.borderRadius = '50%';
+                onlineIndicator.style.backgroundColor = '#2ecc71'; /* Verde */
+                onlineIndicator.style.marginLeft = '5px';
+                onlineIndicator.style.display = 'inline-block';
+                li.appendChild(onlineIndicator);
+                userListUl.appendChild(li);
+            });
+        });
+
+
+        // Evento para actualizar la lista de salas disponibles
+        socket.on('actualizar_lista_salas', function(data) {
+            const roomListUl = document.getElementById('room-list').querySelector('ul');
+            roomListUl.innerHTML = ''; // Limpiar lista existente
+            data.salas.forEach(room => {
+                const li = document.createElement('li');
+                li.textContent = room.nombre;
+                li.dataset.roomName = room.nombre; // Guardar el nombre de la sala en un atributo de datos
+                if (room.nombre === currentRoom) {
+                    li.classList.add('active-room');
+                }
+
+                // Añadir botón de eliminar si el usuario actual es el creador de la sala
+                // y no es una de las salas por defecto (general, desarrollo, ventas)
+                if (room.creador === currentUsername && !['general', 'desarrollo', 'ventas'].includes(room.nombre)) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = 'X';
+                    deleteBtn.classList.add('delete-room-btn');
+                    deleteBtn.title = 'Eliminar sala';
+                    deleteBtn.onclick = (event) => {
+                        event.stopPropagation(); // Evita que se active el joinRoom del LI
+                        if (confirm(`¿Estás seguro de que quieres eliminar la sala "${room.nombre}"?`)) {
+                            socket.emit('eliminar_sala', { nombre_sala: room.nombre });
+                        }
+                    };
+                    li.appendChild(deleteBtn);
+                }
+
+                // Event listener para unirse a la sala al hacer clic en el LI
+                li.addEventListener('click', () => {
+                    if (currentRoom !== room.nombre) {
+                        joinRoom(room.nombre);
+                    }
+                });
+                roomListUl.appendChild(li);
+            });
+        });
+
+        // Evento cuando una sala es creada (notificación global)
+        socket.on('sala_creada', function(data) {
+            if (data.error) {
+                addSystemMessage(`Error al crear sala: ${data.error}`);
+            } else {
+                addSystemMessage(`Sala "${data.nombre_sala}" ha sido creada.`);
+                // La lista de salas se actualizará automáticamente por el evento 'actualizar_lista_salas'
+            }
+        });
+
+        // Evento cuando una sala es eliminada (notificación global)
+        socket.on('sala_eliminada', function(data) {
+            addSystemMessage(`La sala "${data.nombre_sala}" ha sido eliminada por su creador.`);
+            // Si el usuario estaba en la sala eliminada, lo movemos a 'general'
+            if (currentRoom === data.nombre_sala) {
+                joinRoom('general');
+            }
+        });
+
+        // Evento específico para el cliente que estaba en la sala eliminada
+        socket.on('sala_eliminada_cliente', function(data) {
+            if (currentRoom === data.nombre_sala) {
+                document.getElementById('chat-messages').innerHTML = ''; // Limpiar mensajes
+                addSystemMessage(`La sala "${data.nombre_sala}" a la que estabas se eliminó. Te hemos movido a la sala "general".`);
+                // El servidor ya maneja el movimiento a 'general' y la actualización de usuarios.
+            }
+        });
+
+        // Evento para recibir archivos
+        socket.on('archivo_recibido', function(data) {
+            if (data.sala === currentRoom) {
+                // Crear un enlace para el archivo
+                const fileLink = `<a href="${data.ruta}" target="_blank">${data.nombre_archivo}</a>`;
+                addMessage(data.usuario, `ha enviado un archivo: ${fileLink}`, data.timestamp);
+            }
+        });
+
+        // --- Event Listeners de la Interfaz de Usuario ---
+
+        // Botón de enviar mensaje
+        document.getElementById('send-button').addEventListener('click', () => {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            if (message) {
+                // Emitir el mensaje al servidor
+                socket.emit('mensaje', { texto: message, sala: currentRoom });
+                messageInput.value = ''; // Limpiar el input
+            }
+        });
+
+        // Enviar mensaje al presionar Enter en el input de mensaje
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('send-button').click();
+            }
+        });
+
+        // Botón de crear sala
+        document.getElementById('create-room-btn').addEventListener('click', () => {
+            const newRoomNameInput = document.getElementById('new-room-name');
+            const newRoomName = newRoomNameInput.value.trim();
+            if (newRoomName) {
+                socket.emit('crear_sala', { nombre_sala: newRoomName });
+                newRoomNameInput.value = ''; // Limpiar el input
+            } else {
+                addSystemMessage('El nombre de la sala no puede estar vacío.');
+            }
+        });
+
+        // Manejar la selección de archivo y subida
+        document.getElementById('file-input').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return; // No hay archivo seleccionado
+            }
+
+            const formData = new FormData();
+            formData.append('archivo', file);
+            formData.append('usuario', currentUsername); // Enviar el nombre de usuario logueado
+            formData.append('sala', currentRoom); // Enviar la sala actual
+
+            // Realizar la petición fetch para subir el archivo
+            fetch('/subir_archivo', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.mensaje) {
+                    addSystemMessage(`Archivo "${data.nombre_archivo}" subido y enviado.`);
+                } else if (data.error) {
+                    addSystemMessage(`Error al subir archivo: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error al subir archivo:', error);
+                addSystemMessage('Error de red al intentar subir el archivo.');
+            });
+        });
+
+        // Script para ocultar mensajes flash automáticamente
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const flashMessages = document.querySelectorAll('.messages li');
+            flashMessages.forEach((msg, index) => {
+                setTimeout(() => {
+                    msg.style.opacity = '0'; // Inicia la transición de opacidad
+                    setTimeout(() => msg.remove(), 500); // Elimina el elemento después de la transición
+                }, 3000 + (index * 500)); // Desaparece después de 3-5 segundos
+            });
+
+            // Al cargar la página, unirse a la sala general (ya lo hace socket.on('connect'))
+            // joinRoom(currentRoom); // Esto podría ser redundante si ya se llama en 'connect'
+        });
+
+    </script>
+</body>
+</html>
